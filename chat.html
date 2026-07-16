@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetChat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Users List Screen -->
+  <div id="users-screen" class="screen">
+    <div class="header">
+      <h2>NetChat</h2>
+      <button onclick="logout()" class="btn-logout">🚪</button>
+    </div>
+    <div class="current-user">
+      <span id="my-name"></span>
+    </div>
+    <div class="search-box">
+      <input type="text" id="search-user" placeholder="Search by email..." onkeyup="searchUser()">
+    </div>
+    <div id="users-list" class="users-list">
+      <!-- Users will appear here -->
+    </div>
+  </div>
+
+  <!-- Chat Screen -->
+  <div id="chat-screen" class="screen hidden">
+    <div class="chat-header">
+      <button onclick="backToUsers()" class="btn-back">←</button>
+      <div class="chat-user-info">
+        <span id="chat-with-name"></span>
+        <span id="chat-status" class="status"></span>
+      </div>
+    </div>
+    <div id="messages-area" class="messages-area">
+      <!-- Messages appear here -->
+    </div>
+    <div class="input-area">
+      <button onclick="toggleEmoji()" class="btn-emoji">😊</button>
+      <input type="text" id="message-input" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendMessage()">
+      <button onclick="sendMessage()" class="btn-send">➤</button>
+    </div>
+    <div id="emoji-picker" class="emoji-picker hidden">
+      <span onclick="addEmoji('😀')">😀</span>
+      <span onclick="addEmoji('😂')">😂</span>
+      <span onclick="addEmoji('❤️')">❤️</span>
+      <span onclick="addEmoji('👍')">👍</span>
+      <span onclick="addEmoji('🔥')">🔥</span>
+      <span onclick="addEmoji('😭')">😭</span>
+      <span onclick="addEmoji('😎')">😎</span>
+      <span onclick="addEmoji('🎉')">🎉</span>
+      <span onclick="addEmoji('🤔')">🤔</span>
+      <span onclick="addEmoji('😴')">😴</span>
+      <span onclick="addEmoji('😡')">😡</span>
+      <span onclick="addEmoji('🥳')">🥳</span>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
