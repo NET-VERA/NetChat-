@@ -37,20 +37,31 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ========== PATH HELPER ==========
+// ========== BASE PATH DETECTOR ==========
 function getBasePath() {
-  // For GitHub Pages: /repo-name/
-  // For local: /
   const path = window.location.pathname;
-  if(path.includes('/netchat/')) {
-    return '/netchat/';
+  
+  // GitHub Pages: /repo-name/ or /repo-name/page.html
+  if (path.includes('/netchat/')) {
+    const index = path.indexOf('/netchat/');
+    return path.substring(0, index + '/netchat/'.length);
   }
+  
+  // Also check if the hostname is github.io and we're in a subfolder
+  if (window.location.hostname.includes('github.io')) {
+    const parts = path.split('/').filter(p => p);
+    if (parts.length > 0) {
+      return '/' + parts[0] + '/';
+    }
+  }
+  
   return '/';
 }
 
-function getPageUrl(page) {
-  const base = getBasePath();
-  return base + page;
+const BASE_PATH = getBasePath();
+
+function pageUrl(filename) {
+  return BASE_PATH + filename;
 }
 
 // ========== GLOBALS ==========
@@ -61,18 +72,18 @@ let usersUnsubscribe = null;
 
 function showMessage(text, isError = true) {
   const msg = document.getElementById('auth-message');
-  if(msg) {
+  if (msg) {
     msg.textContent = text;
     msg.style.color = isError ? '#e74c3c' : '#25d366';
   }
 }
 
-// ========== AUTH ==========
+// ========== AUTH FUNCTIONS ==========
 window.showTab = function(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
   
-  if(tab === 'login') {
+  if (tab === 'login') {
     document.querySelectorAll('.tab-btn')[0].classList.add('active');
     document.getElementById('login-tab').classList.remove('hidden');
   } else {
@@ -87,11 +98,11 @@ window.signup = async function() {
   const email = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
   
-  if(!name || !email || !password) {
+  if (!name || !email || !password) {
     showMessage("Please fill all fields");
     return;
   }
-  if(password.length < 6) {
+  if (password.length < 6) {
     showMessage("Password must be 6+ characters");
     return;
   }
@@ -113,12 +124,12 @@ window.signup = async function() {
     
     showMessage("Success! Redirecting...", false);
     setTimeout(() => {
-      window.location.href = getPageUrl('chat.html');
+      window.location.href = pageUrl('chat.html');
     }, 1000);
     
-  } catch(error) {
+  } catch (error) {
     console.error("Signup error:", error);
-    if(error.code === 'auth/email-already-in-use') {
+    if (error.code === 'auth/email-already-in-use') {
       showMessage("Email already exists. Please log in.");
     } else {
       showMessage(error.message);
@@ -130,7 +141,7 @@ window.login = async function() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   
-  if(!email || !password) {
+  if (!email || !password) {
     showMessage("Please fill all fields");
     return;
   }
@@ -141,14 +152,14 @@ window.login = async function() {
     await signInWithEmailAndPassword(auth, email, password);
     showMessage("Success! Redirecting...", false);
     setTimeout(() => {
-      window.location.href = getPageUrl('chat.html');
+      window.location.href = pageUrl('chat.html');
     }, 500);
     
-  } catch(error) {
+  } catch (error) {
     console.error("Login error:", error);
-    if(error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+    if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
       showMessage("Wrong email or password");
-    } else if(error.code === 'auth/user-not-found') {
+    } else if (error.code === 'auth/user-not-found') {
       showMessage("Account not found. Please sign up.");
     } else {
       showMessage(error.message);
@@ -158,24 +169,24 @@ window.login = async function() {
 
 window.logout = async function() {
   try {
-    if(currentUser) {
+    if (currentUser) {
       await updateDoc(doc(db, "users", currentUser.uid), {
         online: false,
         lastSeen: serverTimestamp()
       });
     }
     await signOut(auth);
-  } catch(e) {
+  } catch (e) {
     console.error(e);
   }
-  window.location.href = getPageUrl('index.html');
+  window.location.href = pageUrl('index.html');
 };
 
-// ========== AUTH STATE ==========
+// ========== AUTH STATE LISTENER ==========
 onAuthStateChanged(auth, async (user) => {
   console.log("Auth state:", user ? user.email : "null");
   
-  if(user) {
+  if (user) {
     currentUser = user;
     
     try {
@@ -183,43 +194,44 @@ onAuthStateChanged(auth, async (user) => {
         online: true,
         lastSeen: serverTimestamp()
       });
-    } catch(e) {
+    } catch (e) {
       console.log("Status update error:", e);
     }
     
     const path = window.location.pathname;
-    const isIndex = path.endsWith('index.html') || path.endsWith('/') || 
-                    (!path.includes('chat.html') && !path.includes('/chat'));
+    const onIndexPage = path.endsWith('index.html') || 
+                        path.endsWith('/') || 
+                        (!path.includes('chat.html'));
     
-    if(isIndex) {
-      console.log("Redirecting to chat...");
-      window.location.href = getPageUrl('chat.html');
+    if (onIndexPage) {
+      console.log("Redirecting to chat at:", pageUrl('chat.html'));
+      window.location.href = pageUrl('chat.html');
       return;
     }
     
-    if(document.getElementById('my-name')) {
+    if (document.getElementById('my-name')) {
       try {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         const userData = userDoc.data();
         document.getElementById('my-name').textContent = "👤 " + (userData?.name || user.email);
         loadUsers();
-      } catch(e) {
+      } catch (e) {
         console.error("Load user error:", e);
       }
     }
     
   } else {
     currentUser = null;
-    if(window.location.pathname.includes('chat.html') || window.location.pathname.includes('/chat')) {
-      window.location.href = getPageUrl('index.html');
+    if (window.location.pathname.includes('chat.html')) {
+      window.location.href = pageUrl('index.html');
     }
   }
 });
 
-// ========== USERS ==========
+// ========== USERS LIST ==========
 window.loadUsers = function() {
   const usersList = document.getElementById('users-list');
-  if(!usersList) return;
+  if (!usersList) return;
   
   const q = query(collection(db, "users"));
   
@@ -228,7 +240,7 @@ window.loadUsers = function() {
     
     snapshot.forEach((docSnap) => {
       const userData = docSnap.data();
-      if(userData.uid === currentUser?.uid) return;
+      if (userData.uid === currentUser?.uid) return;
       
       const div = document.createElement('div');
       div.className = 'user-item';
@@ -249,7 +261,7 @@ window.loadUsers = function() {
       usersList.appendChild(div);
     });
     
-    if(usersList.children.length === 0) {
+    if (usersList.children.length === 0) {
       usersList.innerHTML = '<div class="no-users">No other users yet.<br>Tell friends to sign up!</div>';
     }
   }, (error) => {
@@ -267,13 +279,13 @@ window.searchUser = function() {
   });
 };
 
-// ========== CHAT ==========
+// ========== CHAT FUNCTIONS ==========
 function getChatId(uid1, uid2) {
   return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
 }
 
 window.openChat = async function(otherUser) {
-  if(!currentUser) return;
+  if (!currentUser) return;
   currentChatId = getChatId(currentUser.uid, otherUser.uid);
   
   document.getElementById('users-screen').classList.add('hidden');
@@ -281,7 +293,7 @@ window.openChat = async function(otherUser) {
   document.getElementById('chat-with-name').textContent = otherUser.name || 'User';
   
   const statusEl = document.getElementById('chat-status');
-  if(otherUser.online) {
+  if (otherUser.online) {
     statusEl.textContent = "Online";
     statusEl.style.color = "#25d366";
   } else {
@@ -292,14 +304,14 @@ window.openChat = async function(otherUser) {
   const messagesArea = document.getElementById('messages-area');
   messagesArea.innerHTML = "";
   
-  if(messagesUnsubscribe) messagesUnsubscribe();
+  if (messagesUnsubscribe) messagesUnsubscribe();
   
   const messagesRef = collection(db, "chats", currentChatId, "messages");
   const q = query(messagesRef, orderBy("timestamp", "asc"));
   
   messagesUnsubscribe = onSnapshot(q, (snapshot) => {
     snapshot.docChanges().forEach((change) => {
-      if(change.type === "added") {
+      if (change.type === "added") {
         displayMessage(change.doc.data());
       }
     });
@@ -309,13 +321,15 @@ window.openChat = async function(otherUser) {
 
 function displayMessage(msg) {
   const messagesArea = document.getElementById('messages-area');
-  if(!messagesArea) return;
-  const isMe = msg.senderId === currentUser?.uid;
+  if (!messagesArea) return;
   
+  const isMe = msg.senderId === currentUser?.uid;
   const div = document.createElement('div');
   div.className = `message ${isMe ? 'me' : 'them'}`;
   
-  const time = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+  const time = msg.timestamp 
+    ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) 
+    : '';
   
   div.innerHTML = `${msg.text}<div class="message-time">${time}</div>`;
   messagesArea.appendChild(div);
@@ -325,7 +339,7 @@ window.sendMessage = async function() {
   const input = document.getElementById('message-input');
   const text = input.value.trim();
   
-  if(!text || !currentChatId || !currentUser) return;
+  if (!text || !currentChatId || !currentUser) return;
   
   input.value = "";
   
@@ -335,7 +349,7 @@ window.sendMessage = async function() {
       senderId: currentUser.uid,
       timestamp: serverTimestamp()
     });
-  } catch(e) {
+  } catch (e) {
     console.error("Send error:", e);
   }
 };
@@ -343,7 +357,7 @@ window.sendMessage = async function() {
 window.backToUsers = function() {
   document.getElementById('chat-screen').classList.add('hidden');
   document.getElementById('users-screen').classList.remove('hidden');
-  if(messagesUnsubscribe) {
+  if (messagesUnsubscribe) {
     messagesUnsubscribe();
     messagesUnsubscribe = null;
   }
@@ -361,12 +375,12 @@ window.addEmoji = function(emoji) {
 };
 
 window.addEventListener('beforeunload', async () => {
-  if(currentUser) {
+  if (currentUser) {
     try {
       await updateDoc(doc(db, "users", currentUser.uid), {
         online: false,
         lastSeen: serverTimestamp()
       });
-    } catch(e) {}
+    } catch (e) {}
   }
 });
