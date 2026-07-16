@@ -20,8 +20,7 @@ import {
   orderBy, 
   onSnapshot,
   serverTimestamp,
-  updateDoc,
-  Timestamp
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 // ========== YOUR FIREBASE CONFIG ==========
@@ -46,9 +45,17 @@ let currentChatId = null;
 let messagesUnsubscribe = null;
 let usersUnsubscribe = null;
 
+// ========== HELPER: Show Message ==========
+function showMessage(text, isError = true) {
+  const msg = document.getElementById('auth-message');
+  if(msg) {
+    msg.textContent = text;
+    msg.style.color = isError ? '#e74c3c' : '#25d366';
+  }
+}
+
 // ========== AUTH FUNCTIONS ==========
 
-// Show Login or Signup tab
 window.showTab = function(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
@@ -60,30 +67,29 @@ window.showTab = function(tab) {
     document.querySelectorAll('.tab-btn')[1].classList.add('active');
     document.getElementById('signup-tab').classList.remove('hidden');
   }
+  showMessage('');
 };
 
-// Sign Up
 window.signup = async function() {
   const name = document.getElementById('signup-name').value.trim();
   const email = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
-  const msg = document.getElementById('auth-message');
   
   if(!name || !email || !password) {
-    msg.textContent = "Please fill all fields";
+    showMessage("Please fill all fields");
     return;
   }
   if(password.length < 6) {
-    msg.textContent = "Password must be 6+ characters";
+    showMessage("Password must be 6+ characters");
     return;
   }
   
+  showMessage("Creating account...", false);
+  
   try {
-    msg.textContent = "Creating account...";
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     
-    // Save user profile to Firestore
     await setDoc(doc(db, "users", user.uid), {
       name: name,
       email: email,
@@ -93,78 +99,113 @@ window.signup = async function() {
       online: true
     });
     
-    msg.style.color = "#25d366";
-    msg.textContent = "Account created! Logging in...";
+    showMessage("Success! Redirecting...", false);
+    
+    // Force redirect after short delay
+    setTimeout(() => {
+      window.location.href = "./chat.html";
+    }, 1000);
     
   } catch(error) {
-    msg.style.color = "#e74c3c";
-    msg.textContent = error.message;
+    console.error("Signup error:", error);
+    if(error.code === 'auth/email-already-in-use') {
+      showMessage("Email already exists. Please log in.");
+    } else {
+      showMessage(error.message);
+    }
   }
 };
 
-// Log In
 window.login = async function() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
-  const msg = document.getElementById('auth-message');
   
   if(!email || !password) {
-    msg.textContent = "Please fill all fields";
+    showMessage("Please fill all fields");
     return;
   }
   
+  showMessage("Logging in...", false);
+  
   try {
-    msg.textContent = "Logging in...";
     await signInWithEmailAndPassword(auth, email, password);
-    // onAuthStateChanged will handle redirect
+    showMessage("Success! Redirecting...", false);
+    
+    setTimeout(() => {
+      window.location.href = "./chat.html";
+    }, 500);
+    
   } catch(error) {
-    msg.style.color = "#e74c3c";
-    msg.textContent = "Wrong email or password";
+    console.error("Login error:", error);
+    if(error.code === 'auth/wrong-password') {
+      showMessage("Wrong password");
+    } else if(error.code === 'auth/user-not-found') {
+      showMessage("Account not found. Please sign up.");
+    } else if(error.code === 'auth/invalid-credential') {
+      showMessage("Invalid email or password");
+    } else {
+      showMessage(error.message);
+    }
   }
 };
 
-// Log Out
 window.logout = async function() {
-  if(currentUser) {
-    // Set offline before logout
-    await updateDoc(doc(db, "users", currentUser.uid), {
-      online: false,
-      lastSeen: serverTimestamp()
-    });
+  try {
+    if(currentUser) {
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        online: false,
+        lastSeen: serverTimestamp()
+      });
+    }
+    await signOut(auth);
+  } catch(e) {
+    console.error(e);
   }
-  await signOut(auth);
-  window.location.href = "index.html";
+  window.location.href = "./index.html";
 };
 
 // ========== AUTH STATE LISTENER ==========
 onAuthStateChanged(auth, async (user) => {
+  console.log("Auth state changed:", user ? user.email : "null");
+  
   if(user) {
     currentUser = user;
     
-    // Update online status
-    await updateDoc(doc(db, "users", user.uid), {
-      online: true,
-      lastSeen: serverTimestamp()
-    });
-    
-    // Redirect to chat if on login page
-    if(window.location.pathname.includes('index')) {
-      window.location.href = "chat.html";
+    try {
+      await updateDoc(doc(db, "users", user.uid), {
+        online: true,
+        lastSeen: serverTimestamp()
+      });
+    } catch(e) {
+      console.log("Could not update online status:", e);
     }
     
-    // Load chat page stuff
+    const isIndexPage = window.location.pathname.endsWith('index.html') || 
+                        window.location.pathname.endsWith('/') ||
+                        !window.location.pathname.includes('chat');
+    
+    if(isIndexPage) {
+      console.log("Redirecting to chat...");
+      window.location.href = "./chat.html";
+      return;
+    }
+    
     if(document.getElementById('my-name')) {
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const userData = userDoc.data();
-      document.getElementById('my-name').textContent = "👤 " + (userData?.name || user.email);
-      loadUsers();
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const userData = userDoc.data();
+        document.getElementById('my-name').textContent = "👤 " + (userData?.name || user.email);
+        loadUsers();
+      } catch(e) {
+        console.error("Error loading user data:", e);
+      }
     }
     
   } else {
     currentUser = null;
-    // Redirect to login if on chat page
-    if(window.location.pathname.includes('chat')) {
-      window.location.href = "index.html";
+    const isChatPage = window.location.pathname.includes('chat');
+    if(isChatPage) {
+      window.location.href = "./index.html";
     }
   }
 });
@@ -172,8 +213,8 @@ onAuthStateChanged(auth, async (user) => {
 // ========== USERS LIST ==========
 window.loadUsers = function() {
   const usersList = document.getElementById('users-list');
+  if(!usersList) return;
   
-  // Listen for all users in real-time
   const q = query(collection(db, "users"));
   
   usersUnsubscribe = onSnapshot(q, (snapshot) => {
@@ -181,9 +222,7 @@ window.loadUsers = function() {
     
     snapshot.forEach((docSnap) => {
       const userData = docSnap.data();
-      
-      // Don't show yourself
-      if(userData.uid === currentUser.uid) return;
+      if(userData.uid === currentUser?.uid) return;
       
       const div = document.createElement('div');
       div.className = 'user-item';
@@ -191,7 +230,6 @@ window.loadUsers = function() {
       
       const initial = userData.name ? userData.name[0].toUpperCase() : '?';
       const isOnline = userData.online ? 'online' : '';
-      const statusText = userData.online ? 'Online' : 'Offline';
       
       div.innerHTML = `
         <div class="user-avatar">${initial}</div>
@@ -199,52 +237,43 @@ window.loadUsers = function() {
           <div class="user-name">${userData.name || 'User'}</div>
           <div class="user-email">${userData.email}</div>
         </div>
-        <div class="user-status ${isOnline}" title="${statusText}"></div>
+        <div class="user-status ${isOnline}"></div>
       `;
       
       usersList.appendChild(div);
     });
     
-    if(usersList.innerHTML === "") {
+    if(usersList.children.length === 0) {
       usersList.innerHTML = '<div class="no-users">No other users yet.<br>Tell your friends to sign up!</div>';
     }
+  }, (error) => {
+    console.error("Users listener error:", error);
+    usersList.innerHTML = '<div class="no-users">Error loading users. Check Firestore rules.</div>';
   });
 };
 
-// Search users
 window.searchUser = function() {
   const search = document.getElementById('search-user').value.toLowerCase();
-  const items = document.querySelectorAll('.user-item');
-  
-  items.forEach(item => {
+  document.querySelectorAll('.user-item').forEach(item => {
     const email = item.querySelector('.user-email').textContent.toLowerCase();
     const name = item.querySelector('.user-name').textContent.toLowerCase();
-    
-    if(email.includes(search) || name.includes(search)) {
-      item.style.display = 'flex';
-    } else {
-      item.style.display = 'none';
-    }
+    item.style.display = (email.includes(search) || name.includes(search)) ? 'flex' : 'none';
   });
 };
 
 // ========== CHAT FUNCTIONS ==========
-
-// Generate unique chat ID from two user IDs
 function getChatId(uid1, uid2) {
   return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
 }
 
-// Open chat with a user
 window.openChat = async function(otherUser) {
+  if(!currentUser) return;
   currentChatId = getChatId(currentUser.uid, otherUser.uid);
   
-  // Show chat screen
   document.getElementById('users-screen').classList.add('hidden');
   document.getElementById('chat-screen').classList.remove('hidden');
   document.getElementById('chat-with-name').textContent = otherUser.name || 'User';
   
-  // Update status
   const statusEl = document.getElementById('chat-status');
   if(otherUser.online) {
     statusEl.textContent = "Online";
@@ -254,11 +283,9 @@ window.openChat = async function(otherUser) {
     statusEl.style.color = "#aaa";
   }
   
-  // Load messages in real-time
   const messagesArea = document.getElementById('messages-area');
   messagesArea.innerHTML = "";
   
-  // Stop previous listener
   if(messagesUnsubscribe) messagesUnsubscribe();
   
   const messagesRef = collection(db, "chats", currentChatId, "messages");
@@ -267,64 +294,51 @@ window.openChat = async function(otherUser) {
   messagesUnsubscribe = onSnapshot(q, (snapshot) => {
     snapshot.docChanges().forEach((change) => {
       if(change.type === "added") {
-        const msg = change.doc.data();
-        displayMessage(msg);
+        displayMessage(change.doc.data());
       }
     });
-    
-    // Scroll to bottom
     messagesArea.scrollTop = messagesArea.scrollHeight;
   });
 };
 
-// Display a message bubble
 function displayMessage(msg) {
   const messagesArea = document.getElementById('messages-area');
-  const isMe = msg.senderId === currentUser.uid;
+  if(!messagesArea) return;
+  const isMe = msg.senderId === currentUser?.uid;
   
   const div = document.createElement('div');
   div.className = `message ${isMe ? 'me' : 'them'}`;
   
-  const time = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+  const time = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
   
-  div.innerHTML = `
-    ${msg.text}
-    <div class="message-time">${time}</div>
-  `;
-  
+  div.innerHTML = `${msg.text}<div class="message-time">${time}</div>`;
   messagesArea.appendChild(div);
 }
 
-// Send message
 window.sendMessage = async function() {
   const input = document.getElementById('message-input');
   const text = input.value.trim();
   
-  if(!text || !currentChatId) return;
+  if(!text || !currentChatId || !currentUser) return;
   
   input.value = "";
   
-  const messagesRef = collection(db, "chats", currentChatId, "messages");
-  
-  await addDoc(messagesRef, {
-    text: text,
-    senderId: currentUser.uid,
-    timestamp: serverTimestamp()
-  });
-  
-  // Also update last message in chat document
-  await setDoc(doc(db, "chats", currentChatId), {
-    users: [currentUser.uid, currentChatId.replace(currentUser.uid, '').replace('_', '')],
-    lastMessage: text,
-    lastMessageTime: serverTimestamp()
-  }, { merge: true });
+  try {
+    const messagesRef = collection(db, "chats", currentChatId, "messages");
+    await addDoc(messagesRef, {
+      text: text,
+      senderId: currentUser.uid,
+      timestamp: serverTimestamp()
+    });
+  } catch(e) {
+    console.error("Send message error:", e);
+    alert("Failed to send message");
+  }
 };
 
-// Back to users list
 window.backToUsers = function() {
   document.getElementById('chat-screen').classList.add('hidden');
   document.getElementById('users-screen').classList.remove('hidden');
-  
   if(messagesUnsubscribe) {
     messagesUnsubscribe();
     messagesUnsubscribe = null;
@@ -332,7 +346,6 @@ window.backToUsers = function() {
   currentChatId = null;
 };
 
-// ========== EMOJI ==========
 window.toggleEmoji = function() {
   document.getElementById('emoji-picker').classList.toggle('hidden');
 };
@@ -343,12 +356,13 @@ window.addEmoji = function(emoji) {
   input.focus();
 };
 
-// ========== CLEANUP ==========
 window.addEventListener('beforeunload', async () => {
   if(currentUser) {
-    await updateDoc(doc(db, "users", currentUser.uid), {
-      online: false,
-      lastSeen: serverTimestamp()
-    });
+    try {
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        online: false,
+        lastSeen: serverTimestamp()
+      });
+    } catch(e) {}
   }
 });
