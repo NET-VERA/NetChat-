@@ -13,10 +13,8 @@ import {
   doc, 
   setDoc, 
   getDoc, 
-  getDocs, 
   addDoc,
   query, 
-  where, 
   orderBy, 
   onSnapshot,
   serverTimestamp,
@@ -39,13 +37,28 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ========== GLOBAL VARIABLES ==========
+// ========== PATH HELPER ==========
+function getBasePath() {
+  // For GitHub Pages: /repo-name/
+  // For local: /
+  const path = window.location.pathname;
+  if(path.includes('/netchat/')) {
+    return '/netchat/';
+  }
+  return '/';
+}
+
+function getPageUrl(page) {
+  const base = getBasePath();
+  return base + page;
+}
+
+// ========== GLOBALS ==========
 let currentUser = null;
 let currentChatId = null;
 let messagesUnsubscribe = null;
 let usersUnsubscribe = null;
 
-// ========== HELPER: Show Message ==========
 function showMessage(text, isError = true) {
   const msg = document.getElementById('auth-message');
   if(msg) {
@@ -54,8 +67,7 @@ function showMessage(text, isError = true) {
   }
 }
 
-// ========== AUTH FUNCTIONS ==========
-
+// ========== AUTH ==========
 window.showTab = function(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
@@ -100,10 +112,8 @@ window.signup = async function() {
     });
     
     showMessage("Success! Redirecting...", false);
-    
-    // Force redirect after short delay
     setTimeout(() => {
-      window.location.href = "./chat.html";
+      window.location.href = getPageUrl('chat.html');
     }, 1000);
     
   } catch(error) {
@@ -130,19 +140,16 @@ window.login = async function() {
   try {
     await signInWithEmailAndPassword(auth, email, password);
     showMessage("Success! Redirecting...", false);
-    
     setTimeout(() => {
-      window.location.href = "./chat.html";
+      window.location.href = getPageUrl('chat.html');
     }, 500);
     
   } catch(error) {
     console.error("Login error:", error);
-    if(error.code === 'auth/wrong-password') {
-      showMessage("Wrong password");
+    if(error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      showMessage("Wrong email or password");
     } else if(error.code === 'auth/user-not-found') {
       showMessage("Account not found. Please sign up.");
-    } else if(error.code === 'auth/invalid-credential') {
-      showMessage("Invalid email or password");
     } else {
       showMessage(error.message);
     }
@@ -161,12 +168,12 @@ window.logout = async function() {
   } catch(e) {
     console.error(e);
   }
-  window.location.href = "./index.html";
+  window.location.href = getPageUrl('index.html');
 };
 
-// ========== AUTH STATE LISTENER ==========
+// ========== AUTH STATE ==========
 onAuthStateChanged(auth, async (user) => {
-  console.log("Auth state changed:", user ? user.email : "null");
+  console.log("Auth state:", user ? user.email : "null");
   
   if(user) {
     currentUser = user;
@@ -177,16 +184,16 @@ onAuthStateChanged(auth, async (user) => {
         lastSeen: serverTimestamp()
       });
     } catch(e) {
-      console.log("Could not update online status:", e);
+      console.log("Status update error:", e);
     }
     
-    const isIndexPage = window.location.pathname.endsWith('index.html') || 
-                        window.location.pathname.endsWith('/') ||
-                        !window.location.pathname.includes('chat');
+    const path = window.location.pathname;
+    const isIndex = path.endsWith('index.html') || path.endsWith('/') || 
+                    (!path.includes('chat.html') && !path.includes('/chat'));
     
-    if(isIndexPage) {
+    if(isIndex) {
       console.log("Redirecting to chat...");
-      window.location.href = "./chat.html";
+      window.location.href = getPageUrl('chat.html');
       return;
     }
     
@@ -197,20 +204,19 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('my-name').textContent = "👤 " + (userData?.name || user.email);
         loadUsers();
       } catch(e) {
-        console.error("Error loading user data:", e);
+        console.error("Load user error:", e);
       }
     }
     
   } else {
     currentUser = null;
-    const isChatPage = window.location.pathname.includes('chat');
-    if(isChatPage) {
-      window.location.href = "./index.html";
+    if(window.location.pathname.includes('chat.html') || window.location.pathname.includes('/chat')) {
+      window.location.href = getPageUrl('index.html');
     }
   }
 });
 
-// ========== USERS LIST ==========
+// ========== USERS ==========
 window.loadUsers = function() {
   const usersList = document.getElementById('users-list');
   if(!usersList) return;
@@ -244,11 +250,11 @@ window.loadUsers = function() {
     });
     
     if(usersList.children.length === 0) {
-      usersList.innerHTML = '<div class="no-users">No other users yet.<br>Tell your friends to sign up!</div>';
+      usersList.innerHTML = '<div class="no-users">No other users yet.<br>Tell friends to sign up!</div>';
     }
   }, (error) => {
-    console.error("Users listener error:", error);
-    usersList.innerHTML = '<div class="no-users">Error loading users. Check Firestore rules.</div>';
+    console.error("Users error:", error);
+    usersList.innerHTML = '<div class="no-users">Error loading users.</div>';
   });
 };
 
@@ -261,7 +267,7 @@ window.searchUser = function() {
   });
 };
 
-// ========== CHAT FUNCTIONS ==========
+// ========== CHAT ==========
 function getChatId(uid1, uid2) {
   return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
 }
@@ -324,15 +330,13 @@ window.sendMessage = async function() {
   input.value = "";
   
   try {
-    const messagesRef = collection(db, "chats", currentChatId, "messages");
-    await addDoc(messagesRef, {
+    await addDoc(collection(db, "chats", currentChatId, "messages"), {
       text: text,
       senderId: currentUser.uid,
       timestamp: serverTimestamp()
     });
   } catch(e) {
-    console.error("Send message error:", e);
-    alert("Failed to send message");
+    console.error("Send error:", e);
   }
 };
 
