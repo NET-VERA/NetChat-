@@ -7,36 +7,279 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <div class="logo">
-      <div class="logo-icon">💬</div>
-      <h1>NetChat</h1>
-      <p>Chat in real time</p>
+  <div id="auth-screen" class="screen">
+    <div class="auth-container">
+      <div class="auth-logo">
+        <div class="logo-ring">
+          <div class="logo-icon">💬</div>
+        </div>
+        <h1>NetChat</h1>
+        <p>Chat in real time</p>
+      </div>
+
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <button class="auth-tab active" onclick="showTab('login')">Log In</button>
+          <button class="auth-tab" onclick="showTab('signup')">Sign Up</button>
+        </div>
+
+        <!-- Login Form -->
+        <div id="login-tab" class="auth-form">
+          <div class="input-group">
+            <input type="email" id="login-email" placeholder=" " required>
+            <label>Email address</label>
+          </div>
+          <div class="input-group">
+            <input type="password" id="login-password" placeholder=" " required>
+            <label>Password</label>
+            <button class="toggle-password" onclick="togglePassword('login-password', this)">👁️</button>
+          </div>
+          <button class="btn-auth" onclick="login()">
+            <span class="btn-text">Log In</span>
+          </button>
+        </div>
+
+        <!-- Sign Up Form -->
+        <div id="signup-tab" class="auth-form hidden">
+          <div class="input-group">
+            <input type="text" id="signup-name" placeholder=" " required>
+            <label>Your Name</label>
+          </div>
+          <div class="input-group">
+            <input type="email" id="signup-email" placeholder=" " required>
+            <label>Email address</label>
+          </div>
+          <div class="input-group">
+            <input type="password" id="signup-password" placeholder=" " required>
+            <label>Password</label>
+            <button class="toggle-password" onclick="togglePassword('signup-password', this)">👁️</button>
+          </div>
+          <button class="btn-auth" onclick="signup()">
+            <span class="btn-text">Create Account</span>
+          </button>
+        </div>
+
+        <div class="auth-divider">
+          <span>or continue with</span>
+        </div>
+
+        <div class="social-login">
+          <button class="social-btn google" onclick="loginWithGoogle()">
+            <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Google
+          </button>
+          <button class="social-btn github" onclick="loginWithGithub()">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+            GitHub
+          </button>
+        </div>
+
+        <p id="auth-message"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App Screen -->
+  <div id="main-screen" class="screen hidden">
+    <!-- Chats Tab -->
+    <div id="chats-tab" class="tab-screen">
+      <div class="app-header">
+        <h2>NetChat</h2>
+        <button class="header-btn" onclick="showStatusModal()">📷</button>
+      </div>
+      <div class="search-box">
+        <input type="text" id="search-user" placeholder="Search users..." onkeyup="searchUser()">
+      </div>
+      <div id="users-list" class="users-list"></div>
     </div>
 
-    <div class="auth-box">
-      <div class="tabs">
-        <button class="tab-btn active" onclick="showTab('login')">Log In</button>
-        <button class="tab-btn" onclick="showTab('signup')">Sign Up</button>
+    <!-- Status Tab -->
+    <div id="status-tab" class="tab-screen hidden">
+      <div class="app-header">
+        <h2>Status</h2>
       </div>
-
-      <!-- Login Form -->
-      <div id="login-tab" class="tab-content">
-        <input type="email" id="login-email" placeholder="Email">
-        <input type="password" id="login-password" placeholder="Password">
-        <button class="btn-primary" onclick="login()">Log In</button>
-      </div>
-
-      <!-- Sign Up Form -->
-      <div id="signup-tab" class="tab-content hidden">
-        <input type="text" id="signup-name" placeholder="Your Name">
-        <input type="email" id="signup-email" placeholder="Email">
-        <input type="password" id="signup-password" placeholder="Password">
-        <button class="btn-primary" onclick="signup()">Create Account</button>
-      </div>
-
-      <p id="auth-message"></p>
+      <div id="status-list" class="status-list"></div>
     </div>
+
+    <!-- Settings Tab -->
+    <div id="settings-tab" class="tab-screen hidden">
+      <div class="app-header">
+        <h2>Settings</h2>
+      </div>
+      
+      <div class="settings-profile-section">
+        <div id="settings-profile" class="settings-profile-header"></div>
+        <input type="file" id="profile-photo-input" accept="image/*" style="display:none" onchange="uploadProfilePhoto(this)">
+      </div>
+
+      <div class="settings-list">
+        <div class="settings-group">
+          <div class="settings-item">
+            <div class="settings-icon">👤</div>
+            <div class="settings-item-content">
+              <label class="settings-label">Name</label>
+              <input type="text" id="setting-name" class="settings-input" placeholder="Your name" onchange="updateProfileName()">
+            </div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-icon">📝</div>
+            <div class="settings-item-content">
+              <label class="settings-label">About</label>
+              <input type="text" id="setting-about" class="settings-input" placeholder="About you" onchange="updateProfileAbout()">
+            </div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-icon">📞</div>
+            <div class="settings-item-content">
+              <label class="settings-label">Phone</label>
+              <input type="text" id="setting-phone" class="settings-input" placeholder="Phone number" onchange="updateProfilePhone()">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-item toggle-item">
+            <div class="settings-icon">🌙</div>
+            <div class="settings-item-content">
+              <span class="settings-label">Dark Mode</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-item toggle-item">
+            <div class="settings-icon">🔔</div>
+            <div class="settings-item-content">
+              <span class="settings-label">Notifications</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-item danger" onclick="logout()">
+            <div class="settings-icon">🚪</div>
+            <div class="settings-item-content">
+              <span class="settings-label danger-text">Log Out</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+      <button class="bottom-nav-btn active" onclick="showTabScreen('chats-tab')">
+        <span class="nav-icon">💬</span>
+        <span class="nav-label">Chats</span>
+      </button>
+      <button class="bottom-nav-btn" onclick="showTabScreen('status-tab')">
+        <span class="nav-icon">📱</span>
+        <span class="nav-label">Status</span>
+      </button>
+      <button class="bottom-nav-btn" onclick="showTabScreen('settings-tab')">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Settings</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Chat Screen Overlay -->
+  <div id="chat-screen" class="chat-overlay hidden">
+    <div class="chat-header">
+      <button class="btn-back" onclick="backToUsers()">←</button>
+      <div class="chat-user-avatar" id="chat-avatar"></div>
+      <div class="chat-user-info">
+        <span id="chat-with-name"></span>
+        <span id="chat-status" class="status"></span>
+      </div>
+    </div>
+    <div id="messages-area" class="messages-area"></div>
+
+    <!-- WhatsApp-Style Input Area -->
+    <div class="input-area">
+      <button class="btn-emoji" onclick="toggleEmoji()">😊</button>
+      <input type="text" id="message-input" placeholder="Message" oninput="toggleSendMic(this)" onkeypress="if(event.key==='Enter')sendMessage()">
+      <button class="btn-attach" onclick="toggleAttachMenu()">📎</button>
+      <button class="btn-camera" onclick="sendImage()">📷</button>
+      <button class="btn-mic" id="btn-mic" onclick="sendMessage()">➤</button>
+    </div>
+
+    <!-- Attachment Menu -->
+    <div id="attach-menu" class="attach-menu hidden">
+      <div class="attach-item" onclick="sendImage(); hideAttachMenu();">
+        <div class="attach-icon" style="background:#7f66ff">🖼️</div>
+        <span>Gallery</span>
+      </div>
+      <div class="attach-item" onclick="sendVideo(); hideAttachMenu();">
+        <div class="attach-icon" style="background:#ff2e74">🎥</div>
+        <span>Video</span>
+      </div>
+      <div class="attach-item" onclick="sendImage(); hideAttachMenu();">
+        <div class="attach-icon" style="background:#0091ea">📷</div>
+        <span>Camera</span>
+      </div>
+      <div class="attach-item" onclick="hideAttachMenu();">
+        <div class="attach-icon" style="background:#ff9800">📄</div>
+        <span>Document</span>
+      </div>
+    </div>
+
+    <div id="emoji-picker" class="emoji-picker hidden">
+      <span onclick="addEmoji('😀')">😀</span>
+      <span onclick="addEmoji('😂')">😂</span>
+      <span onclick="addEmoji('❤️')">❤️</span>
+      <span onclick="addEmoji('👍')">👍</span>
+      <span onclick="addEmoji('🔥')">🔥</span>
+      <span onclick="addEmoji('😭')">😭</span>
+      <span onclick="addEmoji('😎')">😎</span>
+      <span onclick="addEmoji('🎉')">🎉</span>
+      <span onclick="addEmoji('🤔')">🤔</span>
+      <span onclick="addEmoji('😴')">😴</span>
+      <span onclick="addEmoji('😡')">😡</span>
+      <span onclick="addEmoji('🥳')">🥳</span>
+    </div>
+  </div>
+
+  <!-- Status Modal -->
+  <div id="status-modal" class="modal hidden">
+    <div class="modal-overlay" onclick="hideStatusModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Status</h3>
+        <button class="modal-close" onclick="hideStatusModal()">✕</button>
+      </div>
+      <div class="status-options">
+        <button class="status-option" onclick="postImageStatus()">
+          <div class="status-option-icon">📷</div>
+          <span>Photo</span>
+        </button>
+        <div class="status-text-option">
+          <input type="text" id="status-text-input" placeholder="Type a status..." maxlength="100">
+          <button class="btn-send-status" onclick="postTextStatus()">➤</button>
+        </div>
+      </div>
+      <div id="status-image-preview"></div>
+    </div>
+  </div>
+
+  <!-- Status Viewer -->
+  <div id="status-viewer" class="status-viewer hidden">
+    <div class="status-viewer-header">
+      <button class="btn-close" onclick="hideStatusViewer()">✕</button>
+      <div class="status-viewer-progress"><div id="status-progress"></div></div>
+    </div>
+    <div id="status-viewer-content" class="status-viewer-content"></div>
+  </div>
+
+  <!-- Image Viewer -->
+  <div id="image-viewer" class="image-viewer hidden" onclick="closeImageViewer()">
+    <button class="btn-close-viewer" onclick="closeImageViewer()">✕</button>
+    <img id="viewer-image" src="" alt="Full image">
   </div>
 
   <script type="module" src="app.js"></script>
