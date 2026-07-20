@@ -440,25 +440,34 @@ input[type="checkbox"].sr-only:checked + div::after {
 }
 
 /* Chat bubbles */
+/* Base style for all chat bubbles */
 .chat-bubble {
-    max-width: 85%;
-    padding: 6px 10px;
-    border-radius: 8px;
-    position: relative;
-    word-wrap: break-word;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    /* 1. Prevent the bubble from stretching across the whole screen */
+    max-width: 75%; 
+    
+    /* 2. Force long, unbroken strings of text to wrap */
+    overflow-wrap: break-word;
+    word-break: break-word; /* Legacy support */
+    
+    /* Optional: Padding to keep the text looking neat inside the bubble */
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    border-radius: 10px;
 }
 
+/* Your existing specific styles */
 .chat-bubble.sent {
     background-color: var(--wa-bubble-out);
     border-top-right-radius: 0;
     align-self: flex-end;
+    border-radius: 10px;
 }
 
 .chat-bubble.received {
     background-color: var(--wa-bubble-in);
     border-top-left-radius: 0;
     align-self: flex-start;
+    border-radius: 10px;
 }
 
 /* Date header */
